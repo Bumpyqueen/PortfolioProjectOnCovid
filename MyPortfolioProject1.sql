@@ -1,0 +1,300 @@
+SELECT DISTINCT continent
+FROM CovidDeaths
+WHERE continent IS NOT NULL
+-----------------------------------------------------------------------
+/**
+COVID19 CASES IN THE WORLD.
+CREATING A TEMPORARY TABLE #COVIDDEATH, BREAKING DOWN COVID CASES(DEATH_RATE, TOTAL_CASES AND  POPULATION) IN EACH CONTINENT 
+**/
+DROP TABLE IF EXISTS #CovidDeaths
+CREATE TABLE #CovidDeaths
+         (continent VARCHAR(30),
+           [population] BIGINT,
+	        total_cases BIGINT,
+	        total_deaths BIGINT,
+			percent_of_tcases_and_popu FLOAT,
+			percent_of_tdeaths_and_popu FLOAT,
+			percent_of_tdeath_and_tcases FLOAT)
+
+INSERT INTO #CovidDeaths
+SELECT [location],
+       MAX(CAST([population] AS BIGINT)) AS [population],
+	      MAX(CAST(total_cases AS BIGINT)) AS total_cases,
+         MAX(CAST(total_deaths AS BIGINT)) AS total_deaths,
+		    (MAX(CAST(total_cases AS FLOAT))/ MAX(CAST([population] AS FLOAT)))*100 AS percent_of_tcases_and_popu,
+		      (MAX(CAST(total_deaths AS FLOAT))/MAX(CAST([population] AS FLOAT)))*100 AS percent_of_tdeaths_and_popu,
+		       (MAX(CAST(total_deaths AS FLOAT))/MAX(CAST(total_cases AS FLOAT)))*100 AS percent_of_tdeath_and_tcases
+FROM CovidDeaths
+WHERE LOCATION IN ('europe','asia', 'north america', 'south america', 'africa', 'oceania')
+GROUP BY [location]  
+ORDER BY [population] DESC
+
+  
+--  INSERTING ONE MORE ROW("TOTAL") INTO THE TABLE TO CALCULATE THE TOTAL OF EACH COLUMN  
+INSERT INTO #CovidDeaths (continent) VALUES ('TOTAL')
+
+--- CALCULATING AND UPDATING THE SUM OF COLUMN 2,3,4
+SELECT SUM([population]),  -- Ans: 7975106983
+        SUM(total_cases),  -- Ans: 770869162
+        SUM(total_deaths)  -- Ans: 6959298
+FROM #CovidDeaths 	
+
+UPDATE #CovidDeaths
+SET [population] = 7975106983
+WHERE [population] IS NULL
+
+UPDATE #CovidDeaths
+SET total_cases = 770869162
+WHERE total_cases IS NULL
+
+UPDATE #CovidDeaths
+SET total_deaths = 6959298
+WHERE total_deaths IS NULL
+
+--- CALCULATING AND UPDATING THE PERCENTAGE OF COLUMN 5,6,7
+SELECT (SUM(CAST(total_cases AS FLOAT))/SUM(CAST([population] AS FLOAT)))*100, -- Ans: 9.66594133023181
+       (SUM(CAST(total_deaths AS FLOAT))/SUM(CAST([population] AS FLOAT)))*100, -- Ans: 0.0872627541528241
+	   (SUM(CAST(total_deaths AS FLOAT))/SUM(CAST(total_cases AS FLOAT)))*100 -- Ans: 0.902785886770238
+FROM #CovidDeaths 
+
+UPDATE #CovidDeaths
+SET percent_of_tcases_and_popu = 9.66594133023181
+WHERE percent_of_tcases_and_popu IS NULL
+
+UPDATE #CovidDeaths
+SET percent_of_tdeaths_and_popu = 0.0872627541528241
+WHERE percent_of_tdeaths_and_popu IS NULL
+
+UPDATE #CovidDeaths
+SET percent_of_tdeath_and_tcases = 0.902785886770238
+WHERE percent_of_tdeath_and_tcases IS NULL
+
+SELECT *
+FROM #CovidDeaths 
+ORDER BY continent 
+
+/** 
+FROM THE DATASET AVAILABLE AND TABLE ABOVE, THERE ARE 6 CONTINENTS INFECTED BY THE COVID VIRUS.
+FINDINGS:
+1. THE "percent_of_tcases_and_popu" SHOWS THAT ~9.67% OF THE TOTAL POULATION WAS INFECTED BY COVID
+2. THE "percent_of_tdeaths_and_popu" SHOWS THAT ~0.09% OF THE TOTAL POPULATION DIED DUE TO THE INFECTION
+3. THE "percent_of_tdeath_and_tcases" SHOWS THAT ~0.90% OF THE PEOPLE WHO WERE INFECTED BY THE VIRUS DIED
+**/
+
+-- HIGHEST DEATH OF A COUNTRY FROM EACH CONTINENT
+SELECT continent, 
+ CASE
+   WHEN MAX(cast(total_deaths as int)) = 1127152 THEN 'United States'
+   WHEN MAX(cast(total_deaths as int)) = 704659 THEN 'Brazil'
+   WHEN MAX(cast(total_deaths as int)) = 532031 THEN 'India'
+   WHEN MAX(cast(total_deaths as int)) = 400023 THEN 'Russia'
+   WHEN MAX(cast(total_deaths as int)) = 102595 THEN 'South Africa'
+   ELSE 'Australia' END AS [location],
+  MAX(cast(total_deaths as int)) as totaldeaths
+FROM CovidDeaths
+WHERE continent is not null
+GROUP BY continent
+ORDER BY totaldeaths DESC
+
+DROP VIEW IF EXISTS HighestCountryDeath
+CREATE VIEW HighestCountryDeath
+AS
+SELECT continent, 
+ CASE
+   WHEN MAX(cast(total_deaths as int)) = 1127152 THEN 'United States'
+   WHEN MAX(cast(total_deaths as int)) = 704659 THEN 'Brazil'
+   WHEN MAX(cast(total_deaths as int)) = 532031 THEN 'India'
+   WHEN MAX(cast(total_deaths as int)) = 400023 THEN 'Russia'
+   WHEN MAX(cast(total_deaths as int)) = 102595 THEN 'South Africa'
+   ELSE 'Australia' END AS [location],
+  MAX(cast(total_deaths as int)) as totaldeaths
+FROM CovidDeaths
+WHERE continent is not null
+GROUP BY continent
+--ORDER BY totaldeaths DESC
+
+---------------------------------------------------------------------------------------------------------------
+/**
+FURTHER ANALYSIS ON THE CONTINENT "AFRICA"
+		COVID19 CASES IN AFRICA
+**/
+SELECT [location], [date], 
+       [population], total_cases, 
+       new_cases, total_deaths 
+FROM CovidDeaths
+WHERE continent = 'Africa' AND continent IS NOT NULL
+ORDER BY 1,2
+
+/**
+     Comparison between Total_Cases and Total_Deaths
+The % of death rate if covid is contracted in each country in Africa
+**/
+SELECT [Location], [population], MAX(CAST(total_cases AS INT)) AS total_cases,
+        MAX(CAST(total_deaths AS INT)) AS total_deaths, 
+		ROUND((MAX(CAST(total_deaths AS FLOAT))/MAX(CAST(total_cases AS FLOAT)))*100, 2) AS percent_of_death
+FROM CovidDeaths
+WHERE continent ='Africa'  AND continent IS NOT NULL
+GROUP BY [Location],[Population]
+ORDER BY 1,2
+
+/**
+Comparison Between Total_cases and Population
+Percentage of Population Infected with Covid
+**/
+SELECT [Location], MAX(CAST([population] AS INT)) AS [population],
+       MAX(CAST(total_cases AS INT)) AS total_cases, 
+	   ROUND((MAX(CAST(total_cases AS FLOAT))/MAX(CAST([population] AS FLOAT)))*100, 4) AS percent_of_case
+FROM CovidDeaths
+WHERE continent = 'Africa' AND continent IS NOT NULL
+GROUP BY [Location], [population]
+ORDER BY 1,2 
+
+/**
+Comparison between Total_Death and Population
+Percantage of the portion of the population so far who contracted Covid and died
+**/
+SELECT [Location], MAX([population]) AS [population],
+       MAX(CAST(total_deaths AS INT)) AS total_deaths , 
+	  ROUND((MAX(CAST(total_deaths AS FLOAT))/MAX(CAST([population] AS FLOAT)))*100, 4) AS population_totalDeath_percent
+FROM CovidDeaths
+WHERE continent = 'Africa' AND continent IS NOT NULL
+GROUP BY [location]
+ORDER BY 1,2
+
+/**
+Comparison between highest infected Country and its Population
+Country with the highest infection rate 
+**/
+SELECT [Location], MAX(CAST([population] AS INT)) AS [population],
+       MAX(CAST(total_cases AS INT)) AS Highst_inf_country
+FROM CovidDeaths
+WHERE continent = 'Africa' AND continent IS NOT NULL
+GROUP BY [Location]
+ORDER BY Highst_inf_country DESC
+
+/**
+Countries in Africa with the highest date rate in descending order
+Highest number of death rate
+**/
+SELECT [Location], [population],
+       MAX(CAST(total_deaths AS INT)) AS highest_death_rate
+FROM CovidDeaths
+WHERE continent = 'Africa' AND continent IS NOT NULL
+GROUP BY [Location], [population]
+ORDER BY highest_death_rate DESC
+
+-- HIGHEST DEATH IN A COUNTRY FOR EACH CONTINENT
+
+SELECT continent, 
+ CASE
+   WHEN MAX(cast(total_deaths as int)) = 1127152 THEN 'United States'
+   WHEN MAX(cast(total_deaths as int)) = 704659 THEN 'Brazil'
+   WHEN MAX(cast(total_deaths as int)) = 532031 THEN 'India'
+   WHEN MAX(cast(total_deaths as int)) = 400023 THEN 'Russia'
+   WHEN MAX(cast(total_deaths as int)) = 102595 THEN 'South Africa'
+   ELSE 'Australia' END AS [location],
+  MAX(cast(total_deaths as int)) as totaldeaths
+FROM CovidDeaths
+WHERE continent is not null
+GROUP BY continent
+ORDER BY totaldeaths DESC
+
+CREATE VIEW HighestCountryDeath
+AS
+SELECT continent, 
+ CASE
+   WHEN MAX(cast(total_deaths as int)) = 1127152 THEN 'United States'
+   WHEN MAX(cast(total_deaths as int)) = 704659 THEN 'Brazil'
+   WHEN MAX(cast(total_deaths as int)) = 532031 THEN 'India'
+   WHEN MAX(cast(total_deaths as int)) = 400023 THEN 'Russia'
+   WHEN MAX(cast(total_deaths as int)) = 102595 THEN 'South Africa'
+   ELSE 'Australia' END AS [location],
+  MAX(cast(total_deaths as int)) as totaldeaths
+FROM CovidDeaths
+WHERE continent is not null
+GROUP BY continent
+--ORDER BY totaldeaths DESC
+
+SELECT *
+FROM HighestCountryDeath
+---------------------------------------------------------------------------------
+
+--SUM OF CASES(NEWCASES AND DEATHCASES) GLOBALLY GROUPED BY DATES OF OCCCURENCE 
+
+SELECT [date],
+        SUM(CAST(new_cases AS INT)) AS SumOfNewCases, 
+        SUM(CAST(new_deaths AS INT)) AS SumOfdeaths,
+		(SUM(CAST(new_deaths AS FLOAT))/NULLIF(SUM(CAST(new_cases AS FLOAT)),0))*100 AS PercentageOfdeathcases
+FROM CovidDeaths
+WHERE continent IS NOT NULL
+GROUP BY [date]
+ORDER BY 1,2 
+
+SELECT  
+      SUM(CAST(new_cases AS INT)) AS SumOfCases, 
+      SUM(CAST(new_deaths AS INT)) AS SumOfdeaths,
+	  ROUND((SUM(CAST(new_deaths AS FLOAT))/SUM(CAST(new_cases AS FLOAT)))*100, 3) AS PercentageOfdeathcases
+FROM CovidDeaths
+WHERE continent IS NOT NULL
+--GROUP BY [date]
+--ORDER BY 1,2
+-- FROM THE ABOVE QUERY, 0.90% OF THE POPULATION WHO WERE GLOABLLY INFECTED BY THE VIRUS DIED
+
+
+--             COVID DEATHS AND VACCINATION DATASET JOINED TOGETHER USING UNIQUE KEYS FROM BOTH DATASET
+
+SELECT CVD.[continent], CVD.[location], CVD.[date],
+        CVD.[population], CVD.[total_cases], CVD.[new_cases],
+		CVD.[total_deaths], CVV.[people_vaccinated],CVV.new_vaccinations
+FROM CovidDeaths CVD
+JOIN CovidVaccinations CVV
+ON CVD.location = CVV.location
+AND CVD.date = CVV.date
+ORDER BY CVD.[location], CVD.[date]
+
+
+SELECT continent, [location], [population],
+        SUM([population]) OVER (PARTITION BY continent ORDER BY [location]) AS Cummulative_population
+FROM coviddeaths
+WHERE continent IS NOT NULL
+GROUP BY continent, [location], [population]
+
+SELECT CVD.[continent], CVD.[location], CVD.[date],
+        CVD.[population], CVV.[new_vaccinations],
+		--CVD.[total_deaths], CVD.[new_deaths],
+		SUM(CAST(CVV.[new_vaccinations] AS BIGINT)) OVER (PARTITION BY CVD.[location] 
+		ORDER BY CVV.[date]) AS cummulative_Vaccination
+FROM CovidDeaths CVD 
+JOIN CovidVaccinations CVV
+ON CVD.location = CVV.location
+AND CVD.date = CVV.date
+ORDER BY CVD.[location], CVD.[date]
+
+
+WITH Popu_Vaccinated_percent
+AS
+(
+SELECT CVD.[continent], CVD.[location], CVD.[date],
+        CAST(CVD.[population] AS BIGINT) AS [populations],
+		CAST(CVV.[new_vaccinations] AS INT) AS [new_vaccination],
+		--CVD.[total_deaths], CVD.[new_deaths],
+		SUM(CAST(CVV.[new_vaccinations] AS BIGINT)) OVER (PARTITION BY CVD.[location] 
+		ORDER BY CVV.[date]) AS cummulative_Vaccination
+FROM CovidDeaths CVD 
+JOIN CovidVaccinations CVV
+ON CVD.location = CVV.location
+AND CVD.date = CVV.date
+--ORDER BY CVD.[location], CVD.[date]
+)
+SELECT *, ROUND((CAST(cummulative_Vaccination AS FLOAT)/CAST([populations] AS FLOAT))*100, 3) AS vaccinated_percent
+FROM Popu_Vaccinated_percent
+ WHERE continent IS NOT NULL 
+ORDER BY [location], [date]
+
+
+
+
+
+
+
+
