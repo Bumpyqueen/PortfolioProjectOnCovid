@@ -1,7 +1,7 @@
 SELECT DISTINCT continent
 FROM CovidDeaths
 WHERE continent IS NOT NULL
------------------------------------------------------------------------
+---------------------------------------------------------------------
 /**
 COVID19 CASES IN THE WORLD.
 CREATING A TEMPORARY TABLE #COVIDDEATH, BREAKING DOWN COVID CASES(DEATH_RATE, TOTAL_CASES AND  POPULATION) IN EACH CONTINENT 
